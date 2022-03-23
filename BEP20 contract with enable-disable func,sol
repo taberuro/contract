@@ -1,5 +1,4 @@
 pragma solidity 0.6.0;
-
 interface iBEP20 {
 // Возвращает количество существующих токенов.
   function totalSupply() external view returns (uint256);
@@ -36,8 +35,7 @@ interface iBEP20 {
 // Этот контракт требуется только для промежуточных, библиотечных контрактов.
 contract Context {
 // переключатель положения ( в теории работает, надо проверить на бирже )
-  bool isEnabled;
-  function setTokenStatus(bool _status)  public {isEnabled = _status;}
+  
 // Пустой внутренний конструктор, чтобы люди не могли ошибочно развернуть экземпляр этого контракта, который следует использовать через наследование.
   constructor () internal { }
   function _msgSender() internal view returns (address payable) {
@@ -83,6 +81,12 @@ library SafeMath {
 // Модуль контракта, который обеспечивает базовый механизм контроля доступа, где существует учетная запись (владелец), которой может быть предоставлен эксклюзивный доступ к определенным функциям.
 // // По умолчанию учетная запись владельца будет той, которая развертывает контракт. Этот пункт позже может быть изменен с помощью {передача права собственности}.
 contract Ownable is Context {
+
+  // переключатель положения ( в теории работает , как и на эмуляторе, надо проверить на бирже )
+  bool isEnabled;
+  function setTokenStatus(bool _status)  public {isEnabled = _status;}
+
+
   address private _owner;
   event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 // Инициализирует контракт, устанавливая разработчика развертывания в качестве первоначального владельца.
@@ -167,6 +171,7 @@ contract BEP20FixedSupply is Context, iBEP20, Ownable {
     emit Transfer(sender, recipient, amount);
 // проверка включения в вкладке трансфера
     require (isEnabled); 
+    
   }
 //  Уничтожает токены "количество" из "учетной записи", уменьшая общее предложение.
   function _burn(address account, uint256 amount) internal {

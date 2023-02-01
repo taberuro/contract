@@ -1,0 +1,1 @@
+in this repository I store smart contract scripts written by me in the solidity language (versions from 0.5.16 to 0.8.9). Each of these scripts was built directly for a specific case, but if you need something similar, you can always rework my script by relying on comments. Good luck in developing and filling our community with new projects!

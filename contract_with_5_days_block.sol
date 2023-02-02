@@ -1,52 +1,38 @@
 pragma solidity ^0.8.0;
 
-contract Token {
-    string public name;
-    string public symbol;
-    uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-    address public owner;
-    uint256 public lockPeriod;
-    mapping(address => uint256) public lockUntil;
-    address public exemptAddress;
+contract LockableToken {
+uint256 public lockPeriod = 5 days; // Lock period for 5 days
+address public exemptAddress; // Exempt address that is not subject to blocking
 
-    constructor(string memory _name, string memory _symbol, uint256 _totalSupply, uint256 _lockPeriod, address _exemptAddress) public {
-        name = _name;
-        symbol = _symbol;
-        totalSupply = _totalSupply;
-        balanceOf[msg.sender] = _totalSupply;
-        owner = msg.sender;
-        lockPeriod = _lockPeriod;
-        exemptAddress = _exemptAddress;
-    }
+mapping (address => uint256) public lockUntil; // Store the lock end time for each address
+mapping (address => uint256) public balanceOf; // Store the balance of each address
+string public name; // Store the name of the token
+string public symbol; // Store the ticker of the token
+uint256 public totalSupply; // Store the total supply of the token
 
-    function transfer(address _to, uint256 _value) public {
-        require(balanceOf[msg.sender] >= _value && block.timestamp > lockUntil[msg.sender], "Transfer failed: insufficient balance or locked.");
-        balanceOf[msg.sender] -= _value;
-        balanceOf[_to] += _value;
-        lockUntil[msg.sender] = block.timestamp + lockPeriod;
-    }
+// Constructor to initialize the contract
+constructor(uint256 _totalSupply, string memory _name, string memory _symbol, address _exemptAddress) public {
+    totalSupply = _totalSupply;
+    balanceOf[msg.sender] = _totalSupply;
+    name = _name;
+    symbol = _symbol;
+    exemptAddress = _exemptAddress;
+}
 
-    function approve(address _spender, uint256 _value) public {
-        allowance[msg.sender][_spender] = _value;
+// Transfer token from one address to another
+function transfer(address _to, uint256 _value) public {
+    // Check if the sender is not exempt from the lock and the lock has not expired
+    if (msg.sender != exemptAddress && block.timestamp < lockUntil[msg.sender]) {
+        revert("Transaction failed: Token transfer is temporarily locked.");
     }
+    require(balanceOf[msg.sender] >= _value, "Transaction failed: Insufficient balance.");
+    balanceOf[msg.sender] -= _value;
+    balanceOf[_to] += _value;
+    lockUntil[msg.sender] = block.timestamp + lockPeriod;
+}
 
-    function transferFrom(address _from, address _to, uint256 _value) public {
-        require(balanceOf[_from] >= _value && allowance[_from][msg.sender] >= _value && block.timestamp > lockUntil[_from], "Transfer failed: insufficient balance or locked or allowance.");
-        balanceOf[_from] -= _value;
-        balanceOf[_to] += _value;
-        allowance[_from][msg.sender] -= _value;
-        lockUntil[_from] = block.timestamp + lockPeriod;
-    }
-
-    function updateLockPeriod(uint256 _newLockPeriod) public {
-        require(msg.sender == owner, "Only owner can update lock period.");
-        lockPeriod = _newLockPeriod;
-    }
-
-    function updateExemptAddress(address _newExemptAddress) public {
-        require(msg.sender == owner, "Only owner can update exempt address.");
-        exemptAddress = _newExemptAddress;
-    }
+// Get the balance of an address
+function getBalance(address _address) public view returns (uint256) {
+    return balanceOf[_address];
+}
 }

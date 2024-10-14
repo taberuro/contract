@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract InternationalBearCommunityToken {
+    string public name = "International Bear Community";
+    string public symbol = "IBC";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
+    
+    address public owner;
+    bool public paused = false;
+
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    mapping(address => bool) public isBlacklisted;
+
+    // События
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Paused();
+    event Unpaused();
+    event Blacklisted(address indexed account);
+    event Unblacklisted(address indexed account);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    // Модификатор для функций, которые могут выполняться только владельцем
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+
+    // Модификатор для функций, которые можно вызывать только если токен не приостановлен
+    modifier whenNotPaused() {
+        require(!paused, "Token transfers are paused");
+        _;
+    }
+
+    // Модификатор для функций, которые можно вызывать только для не заблокированных адресов
+    modifier notBlacklisted(address account) {
+        require(!isBlacklisted[account], "Account is blacklisted");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        totalSupply = 10000000 * (10 ** uint256(decimals)); // 10 000 000 токенов
+        balanceOf[owner] = totalSupply;
+        emit Transfer(address(0), owner, totalSupply); // Логируем создание токенов
+    }
+
+    // Функция передачи токенов
+    function transfer(address to, uint256 value) public whenNotPaused notBlacklisted(msg.sender) notBlacklisted(to) returns (bool success) {
+        require(balanceOf[msg.sender] >= value, "Insufficient balance");
+        _transfer(msg.sender, to, value);
+        return true;
+    }
+
+    // Внутренняя функция для обработки перевода токенов
+    function _transfer(address from, address to, uint256 value) internal {
+        require(to != address(0), "Invalid address");
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+        emit Transfer(from, to, value);
+    }
+
+    // Функция для одобрения делегированного перевода
+    function approve(address spender, uint256 value) public whenNotPaused notBlacklisted(msg.sender) notBlacklisted(spender) returns (bool success) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+
+    // Функция для перевода токенов от имени владельца, если есть разрешение
+    function transferFrom(address from, address to, uint256 value) public whenNotPaused notBlacklisted(from) notBlacklisted(to) returns (bool success) {
+        require(value <= balanceOf[from], "Insufficient balance");
+        require(value <= allowance[from][msg.sender], "Allowance exceeded");
+
+        allowance[from][msg.sender] -= value;
+        _transfer(from, to, value);
+        return true;
+    }
+
+    // Функция для увеличения разрешённого лимита
+    function increaseAllowance(address spender, uint256 addedValue) public whenNotPaused notBlacklisted(spender) returns (bool) {
+        allowance[msg.sender][spender] += addedValue;
+        emit Approval(msg.sender, spender, allowance[msg.sender][spender]);
+        return true;
+    }
+
+    // Функция для уменьшения разрешённого лимита
+    function decreaseAllowance(address spender, uint256 subtractedValue) public whenNotPaused notBlacklisted(spender) returns (bool) {
+        require(allowance[msg.sender][spender] >= subtractedValue, "Decreased allowance below zero");
+        allowance[msg.sender][spender] -= subtractedValue;
+        emit Approval(msg.sender, spender, allowance[msg.sender][spender]);
+        return true;
+    }
+
+    // Функция выпуска дополнительных токенов (только владелец может выпускать новые токены)
+    function mint(uint256 value) public onlyOwner {
+        totalSupply += value;
+        balanceOf[owner] += value;
+        emit Transfer(address(0), owner, value);
+    }
+
+    // Функция сжигания токенов
+    function burn(uint256 value) public {
+        require(balanceOf[msg.sender] >= value, "Insufficient balance to burn");
+        totalSupply -= value;
+        balanceOf[msg.sender] -= value;
+        emit Transfer(msg.sender, address(0), value);
+    }
+
+    // Функция для постановки контракта на паузу (приостанавливает все переводы)
+    function pause() public onlyOwner {
+        paused = true;
+        emit Paused();
+    }
+
+    // Функция для снятия паузы
+    function unpause() public onlyOwner {
+        paused = false;
+        emit Unpaused();
+    }
+
+    // Функция добавления адреса в чёрный список
+    function blacklist(address account) public onlyOwner {
+        isBlacklisted[account] = true;
+        emit Blacklisted(account);
+    }
+
+    // Функция удаления адреса из чёрного списка
+    function unblacklist(address account) public onlyOwner {
+        isBlacklisted[account] = false;
+        emit Unblacklisted(account);
+    }
+
+    // Функция для передачи прав владельца контракта
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "New owner is the zero address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+}
